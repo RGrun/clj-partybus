@@ -1,9 +1,7 @@
 (ns clj-partybus.core
-  (:require [clojure.core.async :refer [chan <!! >!! go-loop]]))
-
+  (:import (javax.management.openmbean KeyAlreadyExistsException)))
 
 (def queues (atom {}))
-
 
 (defn register!
   "Registers a thread with the message bus."
@@ -12,9 +10,9 @@
     (if-not (contains? @queues key)
       (swap! queues assoc key clojure.lang.PersistentQueue/EMPTY)
       (throw
-        (Exception. "Queue already exists for this key.")))
+        (KeyAlreadyExistsException. "Queue already exists for this key.")))
     (throw
-      (Exception. "Key must be a keyword."))))
+      (IllegalArgumentException. "Key must be a keyword."))))
 
 (defn clear-queue!
   "Clears the queue belonging to a specific key."
@@ -22,7 +20,7 @@
   (if (contains? @queues key)
     (swap! queues assoc key clojure.lang.PersistentQueue/EMPTY)
     (throw
-      (Exception. "This key isn't registsterd."))))
+      (IllegalArgumentException. "This key isn't registsterd."))))
 
 (defn full-reset!
   "Clears all queues and keys."
@@ -35,7 +33,7 @@
   (if (contains? @queues key)
     (not (nil? (peek (@queues key))))
     (throw
-      (Exception. "This key isn't registered."))))
+      (IllegalArgumentException. "This key isn't registered."))))
 
 (defn send-message!
   "Adds a new message to the queue belonging to the given key."
@@ -43,8 +41,7 @@
   (if (contains? @queues key)
     (swap! queues #(update % key conj msg))
     (throw
-      (Exception. "There is no queue registered for this key."))))
-
+      (IllegalArgumentException. "There is no queue registered for this key."))))
 
 (defn get-message!
   "Grabs the next avaliable message in key's queue."
@@ -53,5 +50,5 @@
     (let [ret (peek (@queues key))]
       (swap! queues #(update % key pop))
       ret)
-    nil                                                     ;; throw exception instead?
-    ))
+    (throw
+      (IllegalArgumentException. "No message is avaliable for that key."))))
